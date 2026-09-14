@@ -111,11 +111,12 @@
       }
     }
 
-    const currentDate = "2026-09-14";
+    // יצירת חותמת זמן מדויקת ברמת השנייה הנוכחית
+    const currentTimestamp = new Date().toUTCString();
 
     const systemInstruction = liveDataContent 
-      ? `You are an elite institutional financial and market analyst. Today's exact date is ${currentDate} (Year 2026). STRICT RULE: All historical context, trends, and data references must be strictly up to date with 2026. Do NOT mention outdated years like 2023, 2022, or earlier in your analysis. Use the following verified live market data to provide professional analysis, market trends, and trading signals (Entry, Take Profit, Stop Loss) strictly in USD. Format your output cleanly using standard Markdown (*bold*, _italic_, \`code\`).: ${liveDataContent}`
-      : `You are an elite institutional financial and market analyst. Today's exact date is ${currentDate} (Year 2026). STRICT RULE: Never reference old years like 2023. WARNING: No live market data was found for the user's query. Answer professionally or prompt the user for a valid asset symbol. Use clean Markdown formatting.`;
+      ? `You are an elite institutional financial and market analyst. Current exact UTC timestamp: ${currentTimestamp}. STRICT RULE: You are operating in real-time at this exact second. Every piece of analysis, market trend, and context must reflect the current moment of 2026. Do NOT reference past years like 2023 or earlier. Use the following verified live market data to provide professional analysis, market trends, and trading signals (Entry, Take Profit, Stop Loss) strictly in USD. Format your output cleanly using standard Markdown (*bold*, _italic_, \`code\`).: ${liveDataContent}`
+      : `You are an elite institutional financial and market analyst. Current exact UTC timestamp: ${currentTimestamp}. STRICT RULE: Real-time operation only at this exact second. Never reference old years like 2023. WARNING: No live market data was found for the user's query. Answer professionally or prompt the user for a valid asset symbol. Use clean Markdown formatting.`;
 
     // AI Call with error handling
     let replyText = "Unable to process market data at the moment. Please try again.";
