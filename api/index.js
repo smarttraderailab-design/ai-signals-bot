@@ -1,9 +1,8 @@
  module.exports = async (req, res) => {
-  // Always return 200 to Telegram quickly to prevent timeouts
   try {
     if (req.method !== 'POST') {
       res.setHeader('Content-Type', 'text/plain');
-      return res.status(200).send('Bot is active and running.');
+      return res.status(200).send('Bot is active and running smoothly.');
     }
 
     const body = req.body || {};
@@ -112,11 +111,11 @@
       }
     }
 
-    const currentDate = new Date().toISOString().split('T')[0];
+    const currentDate = "2026-09-14";
 
     const systemInstruction = liveDataContent 
-      ? `You are an elite institutional financial and market analyst. Today's exact date is ${currentDate}. Use the following verified live market data to provide professional analysis, market trends, and trading signals (Entry, Take Profit, Stop Loss) strictly in USD. Format your output cleanly using standard Markdown (*bold*, _italic_, \`code\`).: ${liveDataContent}`
-      : `You are an elite institutional financial and market analyst. Today's exact date is ${currentDate}. WARNING: No live market data was found for the user's query. Answer professionally or prompt the user for a valid asset symbol. Use clean Markdown formatting.`;
+      ? `You are an elite institutional financial and market analyst. Today's exact date is ${currentDate} (Year 2026). STRICT RULE: All historical context, trends, and data references must be strictly up to date with 2026. Do NOT mention outdated years like 2023, 2022, or earlier in your analysis. Use the following verified live market data to provide professional analysis, market trends, and trading signals (Entry, Take Profit, Stop Loss) strictly in USD. Format your output cleanly using standard Markdown (*bold*, _italic_, \`code\`).: ${liveDataContent}`
+      : `You are an elite institutional financial and market analyst. Today's exact date is ${currentDate} (Year 2026). STRICT RULE: Never reference old years like 2023. WARNING: No live market data was found for the user's query. Answer professionally or prompt the user for a valid asset symbol. Use clean Markdown formatting.`;
 
     // AI Call with error handling
     let replyText = "Unable to process market data at the moment. Please try again.";
@@ -162,7 +161,6 @@
     });
 
     if (!telegramRes.ok) {
-      // Fallback without Markdown if parsing fails
       await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -176,6 +174,6 @@
     return res.status(200).json({ success: true });
   } catch (error) {
     console.error("Global Bot Error:", error);
-    return res.status(200).json({ success: true }); // Always return 200 to prevent Telegram webhook loops
+    return res.status(200).json({ success: true });
   }
 };
