@@ -1,4 +1,4 @@
- module.exports = async (req, res) => {
+  module.exports = async (req, res) => {
   try {
     if (req.method !== 'POST') {
       res.setHeader('Content-Type', 'text/plain');
