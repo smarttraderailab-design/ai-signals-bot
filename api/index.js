@@ -16,9 +16,9 @@
     const lowerText = userText.toLowerCase();
     const username = message.from?.username || message.from?.first_name || "User";
 
-    // 1. טיפול בפקודת התחלה /start
+    // Handle start command
     if (lowerText.includes('/start') || lowerText === 'start') {
-      const welcomeText = `*ברוכים הבאים למערכת האנליזה והסיגנלים*\n\nכדי לקבל ניתוחי שוק מקצועיים ואיתותי מסחר בזמן אמת ב-USD עבור קריפטו ומניות וול סטריט:\n\n1️⃣ שלח את *כתובת האימייל שלך* להפעלת הגישה המלאה.\n2️⃣ שלח כל סימול מטבע או מניה (למשל: \`BTC\`, \`SOL\`, \`AAPL\`, \`NVDA\`).`;
+      const welcomeText = `*Welcome to the Market Analysis & Signals System*\n\nTo get professional market analysis and real-time trading signals in USD for crypto and Wall Street stocks:\n\n1️⃣ Send your *email address* to unlock full access.\n2️⃣ Send any asset symbol or name (e.g., \`BTC\`, \`SOL\`, \`AAPL\`, \`NVDA\`).`;
       
       await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
         method: "POST",
@@ -28,7 +28,7 @@
       return res.status(200).json({ success: true });
     }
 
-    // 2. זיהוי אוטומטי של אימייל ושליחה ל-Make.com Webhook
+    // Auto-detect email and send to Make webhook
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (emailRegex.test(userText)) {
       if (process.env.MAKE_WEBHOOK_URL) {
@@ -56,7 +56,7 @@
     const words = userText.split(/\s+/);
     let liveDataContent = "";
 
-    // 3. חיפוש דינמי בקריפטו (CoinGecko)
+    // Dynamic crypto search (CoinGecko)
     for (const word of words) {
       const cleanWord = word.replace(/[^a-zA-Z0-9]/g, '');
       if (cleanWord.length < 1) continue;
@@ -75,7 +75,7 @@
 
           if (priceData && priceData[coinId]) {
             const coinInfo = priceData[coinId];
-            liveDataContent = `[LIVE MARKET DATA (Crypto): Asset: ${coin.name} (${foundCoinSymbol}) | Price: $${coinInfo.usd} USD | 24h Change: ${coinInfo.usd_24h_change ? coinInfo.usd_24h_change.toFixed(2) : 'N/A'}% | Market Cap: $${coinInfo.usd_market_cap || 'N/A']} USD]`;
+            liveDataContent = `[LIVE MARKET DATA (Crypto): Asset: ${coin.name} (${foundCoinSymbol}) | Price: $${coinInfo.usd} USD | 24h Change: ${coinInfo.usd_24h_change ? coinInfo.usd_24h_change.toFixed(2) : 'N/A'}% | Market Cap: $${coinInfo.usd_market_cap || 'N/A'} USD]`;
             break;
           }
         }
@@ -84,7 +84,7 @@
       }
     }
 
-    // 4. חיפוש דינמי במניות וול סטריט (Yahoo Finance) אם לא נמצא קריפטו
+    // Dynamic stock search (Yahoo Finance) if crypto not found
     if (!liveDataContent) {
       for (const word of words) {
         const cleanWord = word.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
@@ -135,13 +135,13 @@
     const aiData = await aiResponse.json();
     let replyText = aiData.choices?.[0]?.message?.content || "Error analyzing market data.";
 
-    // ניקוי אוטומטי של תגיות HTML שגויות למעבר שורה אמיתי בטלגרם
+    // Clean HTML tags and replace with Markdown
     replyText = replyText
       .replace(/<br\s*[\/]?>/gi, '\n')
       .replace(/<\/?b>/gi, '*')
       .replace(/<\/?i>/gi, '_');
 
-    // שליחת הודעה לטלגרם עם Markdown תקין
+    // Send message to Telegram with Markdown formatting
     let telegramRes = await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -152,7 +152,7 @@
       })
     });
 
-    // גיבוי למקרה שעיצוב ה-Markdown נכשל
+    // Fallback if Markdown fails
     if (!telegramRes.ok) {
       await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
         method: "POST",
