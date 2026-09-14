@@ -18,12 +18,12 @@
 
     // 1. טיפול בפקודת התחלה /start
     if (lowerText.includes('/start') || lowerText === 'start') {
-      const welcomeText = `🤖 <b>ברוכים הבאים למערכת האנליזה והסיגנלים</b>\n\nכדי לקבל ניתוחי שוק מקצועיים ואיתותי מסחר בזמן אמת ב-USD עבור קריפטו ומניות וול סטריט:\n\n1️⃣ שלח את <b>כתובת האימייל שלך</b> להפעלת הגישה המלאה.\n2️⃣ שלח כל סימול מטבע או מניה (למשל: <code>BTC</code>, <code>SOL</code>, <code>AAPL</code>, <code>NVDA</code>).`;
+      const welcomeText = `*ברוכים הבאים למערכת האנליזה והסיגנלים*\n\nכדי לקבל ניתוחי שוק מקצועיים ואיתותי מסחר בזמן אמת ב-USD עבור קריפטו ומניות וול סטריט:\n\n1️⃣ שלח את *כתובת האימייל שלך* להפעלת הגישה המלאה.\n2️⃣ שלח כל סימול מטבע או מניה (למשל: \`BTC\`, \`SOL\`, \`AAPL\`, \`NVDA\`).`;
       
       await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chat_id: chatId, text: welcomeText, parse_mode: "HTML" })
+        body: JSON.stringify({ chat_id: chatId, text: welcomeText, parse_mode: "Markdown" })
       });
       return res.status(200).json({ success: true });
     }
@@ -43,12 +43,12 @@
         }
       }
 
-      const successEmailText = `✅ <b>Email verified successfully!</b>\n\nYou now have full access to institutional crypto and stock market intelligence signals. Send any asset symbol (e.g., <code>BTC</code>, <code>SOL</code>, <code>AAPL</code>, <code>NVDA</code>) to get real-time analysis.`;
+      const successEmailText = `*Email verified successfully!*\n\nYou now have full access to institutional crypto and stock market intelligence signals. Send any asset symbol (e.g., \`BTC\`, \`SOL\`, \`AAPL\`, \`NVDA\`) to get real-time analysis.`;
       
       await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chat_id: chatId, text: successEmailText, parse_mode: "HTML" })
+        body: JSON.stringify({ chat_id: chatId, text: successEmailText, parse_mode: "Markdown" })
       });
       return res.status(200).json({ success: true });
     }
@@ -75,7 +75,7 @@
 
           if (priceData && priceData[coinId]) {
             const coinInfo = priceData[coinId];
-            liveDataContent = `[LIVE MARKET DATA (Crypto): Asset: ${coin.name} (${foundCoinSymbol}) | Price: $${coinInfo.usd} USD | 24h Change: ${coinInfo.usd_24h_change ? coinInfo.usd_24h_change.toFixed(2) : 'N/A'}% | Market Cap: $${coinInfo.usd_market_cap || 'N/A'} USD]`;
+            liveDataContent = `[LIVE MARKET DATA (Crypto): Asset: ${coin.name} (${foundCoinSymbol}) | Price: $${coinInfo.usd} USD | 24h Change: ${coinInfo.usd_24h_change ? coinInfo.usd_24h_change.toFixed(2) : 'N/A'}% | Market Cap: $${coinInfo.usd_market_cap || 'N/A']} USD]`;
             break;
           }
         }
@@ -114,8 +114,8 @@
     const currentDate = new Date().toISOString().split('T')[0];
 
     const systemInstruction = liveDataContent 
-      ? `You are an elite institutional financial and market analyst. Today's exact date is ${currentDate}. Use the following verified live market data to provide professional analysis, market trends, and trading signals (Entry, Take Profit, Stop Loss) strictly in USD. Format your output cleanly using basic HTML tags (like <b>, <i>, <code>) instead of Markdown to avoid formatting errors.: ${liveDataContent}`
-      : `You are an elite institutional financial and market analyst. Today's exact date is ${currentDate}. WARNING: No live market data was found for the user's query. If the user is asking a general question, answer professionally. If they are looking for an asset and none was found, gently prompt them to provide their email address to register or check the asset symbol. Use clean HTML formatting tags.`;
+      ? `You are an elite institutional financial and market analyst. Today's exact date is ${currentDate}. Use the following verified live market data to provide professional analysis, market trends, and trading signals (Entry, Take Profit, Stop Loss) strictly in USD. Format your output cleanly using standard Markdown (*bold*, _italic_, \`code\`). Do NOT use HTML tags like <br> or <b>.: ${liveDataContent}`
+      : `You are an elite institutional financial and market analyst. Today's exact date is ${currentDate}. WARNING: No live market data was found for the user's query. If the user is asking a general question, answer professionally. If they are looking for an asset and none was found, gently prompt them to provide their email address to register or check the asset symbol. Use clean Markdown formatting without HTML tags.`;
 
     const aiResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
@@ -135,18 +135,24 @@
     const aiData = await aiResponse.json();
     let replyText = aiData.choices?.[0]?.message?.content || "Error analyzing market data.";
 
-    // ניסיון שליחה עם HTML בטוח
+    // ניקוי אוטומטי של תגיות HTML שגויות למעבר שורה אמיתי בטלגרם
+    replyText = replyText
+      .replace(/<br\s*[\/]?>/gi, '\n')
+      .replace(/<\/?b>/gi, '*')
+      .replace(/<\/?i>/gi, '_');
+
+    // שליחת הודעה לטלגרם עם Markdown תקין
     let telegramRes = await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chat_id: chatId,
         text: replyText,
-        parse_mode: "HTML"
+        parse_mode: "Markdown"
       })
     });
 
-    // אם עיצוב ה-HTML נכשל מסיבה כלשהי, נשלח כטקסט רגיל כדי שלא תפול שגיאה
+    // גיבוי למקרה שעיצוב ה-Markdown נכשל
     if (!telegramRes.ok) {
       await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
         method: "POST",
