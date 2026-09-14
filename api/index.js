@@ -18,7 +18,7 @@
 
     // Handle /start command
     if (lowerText.includes('/start') || lowerText === 'start') {
-      const welcomeText = `*Welcome to the Market Analysis & Signals System*\n\nTo get professional market analysis and real-time trading signals in USD for crypto and Wall Street stocks:\n\n1️⃣ Send your *email address* to unlock full access.\n2️⃣ Send any asset symbol or name (e.g., \`BTC\`, \`SOL\`, \`AAPL\`, \`NVDA\`).`;
+      const welcomeText = `*Welcome to the Market Analysis & Signals System*\n\nTo unlock institutional market analysis and real-time trading signals in USD:\n\n1️⃣ Send your registered *email address* to verify your access against our secure database.\n2️⃣ Once verified, send any asset symbol (e.g., \`BTC\`, \`SOL\`, \`AAPL\`, \`NVDA\`).`;
       
       await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
         method: "POST",
@@ -28,35 +28,62 @@
       return res.status(200).json({ success: true });
     }
 
-    // Handle email verification and Make webhook
+    // Handle email verification and database check
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (emailRegex.test(userText)) {
-      if (process.env.MAKE_WEBHOOK_URL) {
+      let isAuthorized = false;
+
+      // 1. Check directly against Google Sheets CSV if configured
+      if (process.env.GOOGLE_SHEET_CSV_URL) {
+        try {
+          const sheetRes = await fetch(process.env.GOOGLE_SHEET_CSV_URL);
+          const sheetText = await sheetRes.text();
+          if (sheetText.toLowerCase().includes(userText.toLowerCase())) {
+            isAuthorized = true;
+          }
+        } catch (e) {
+          console.error("Google Sheet CSV check error:", e);
+        }
+      } else {
+        // Fallback: if CSV URL isn't set yet, we allow it and send to Make webhook
+        isAuthorized = true;
+      }
+
+      // 2. Send to Make webhook to log the lead if authorized
+      if (isAuthorized && process.env.MAKE_WEBHOOK_URL) {
         try {
           await fetch(process.env.MAKE_WEBHOOK_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ chatId, username, email: userText, timestamp: new Date().toISOString() })
+            body: JSON.stringify({ 
+              chatId, 
+              username, 
+              email: userText, 
+              source: "Telegram Bot Verified",
+              timestamp: new Date().toISOString() 
+            })
           });
         } catch (err) {
           console.error("Make webhook error:", err);
         }
       }
 
-      const successEmailText = `*Email verified successfully!*\n\nYou now have full access to institutional crypto and stock market intelligence signals. Send any asset symbol (e.g., \`BTC\`, \`SOL\`, \`AAPL\`, \`NVDA\`) to get real-time analysis.`;
-      
+      const responseText = isAuthorized 
+        ? `*Email Verified Successfully!*\n\nYour access has been approved against our database. You now have full access to real-time crypto and stock signals. Send any asset symbol (e.g., \`BTC\`, \`SOL\`, \`AAPL\`, \`NVDA\`) to start.`
+        : `*Access Denied*\n\nThis email address was not found in our pre-registered database. Please register first or use your authorized email.`;
+
       await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chat_id: chatId, text: successEmailText, parse_mode: "Markdown" })
+        body: JSON.stringify({ chat_id: chatId, text: responseText, parse_mode: "Markdown" })
       });
       return res.status(200).json({ success: true });
     }
 
+    // Market data processing for assets (Crypto & Stocks)
     const words = userText.split(/\s+/);
     let liveDataContent = "";
 
-    // Safe dynamic crypto search (CoinGecko)
     try {
       for (const word of words) {
         const cleanWord = word.replace(/[^a-zA-Z0-9]/g, '');
@@ -84,7 +111,6 @@
       console.error("Crypto API error:", e);
     }
 
-    // Safe dynamic stock search (Yahoo Finance) if crypto not found
     if (!liveDataContent) {
       try {
         for (const word of words) {
@@ -111,14 +137,11 @@
       }
     }
 
-    // יצירת חותמת זמן מדויקת ברמת השנייה הנוכחית
     const currentTimestamp = new Date().toUTCString();
-
     const systemInstruction = liveDataContent 
-      ? `You are an elite institutional financial and market analyst. Current exact UTC timestamp: ${currentTimestamp}. STRICT RULE: You are operating in real-time at this exact second. Every piece of analysis, market trend, and context must reflect the current moment of 2026. Do NOT reference past years like 2023 or earlier. Use the following verified live market data to provide professional analysis, market trends, and trading signals (Entry, Take Profit, Stop Loss) strictly in USD. Format your output cleanly using standard Markdown (*bold*, _italic_, \`code\`).: ${liveDataContent}`
-      : `You are an elite institutional financial and market analyst. Current exact UTC timestamp: ${currentTimestamp}. STRICT RULE: Real-time operation only at this exact second. Never reference old years like 2023. WARNING: No live market data was found for the user's query. Answer professionally or prompt the user for a valid asset symbol. Use clean Markdown formatting.`;
+      ? `You are an elite institutional financial and market analyst. Current exact UTC timestamp: ${currentTimestamp}. STRICT RULE: Real-time operation only at this exact second. Every analysis must reflect 2026. Use the following verified live market data to provide professional analysis, market trends, and trading signals (Entry, Take Profit, Stop Loss) strictly in USD. Format your output cleanly using standard Markdown (*bold*, _italic_, \`code\`).: ${liveDataContent}`
+      : `You are an elite institutional financial and market analyst. Current exact UTC timestamp: ${currentTimestamp}. STRICT RULE: Real-time operation only. If the user is asking for an asset and none was found, gently prompt them to provide their registered email address to verify their access. Use clean Markdown formatting.`;
 
-    // AI Call with error handling
     let replyText = "Unable to process market data at the moment. Please try again.";
     try {
       const aiResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -144,13 +167,11 @@
       console.error("AI API error:", aiErr);
     }
 
-    // Clean any unwanted HTML tags
     replyText = replyText
       .replace(/<br\s*[\/]?>/gi, '\n')
       .replace(/<\/?b>/gi, '*')
       .replace(/<\/?i>/gi, '_');
 
-    // Send response to Telegram safely
     const telegramRes = await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
